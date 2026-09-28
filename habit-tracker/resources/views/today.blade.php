@@ -11,7 +11,7 @@
     ];
 @endphp
 
-<x-app-layout :title="$isToday ? 'Hoy' : LocalDate::human($day)">
+<x-app-layout :title="$isToday ? 'Hoy' : LocalDate::human($day)" width="wide">
     <x-slot name="header">
         <div class="flex items-center gap-1">
             @if ($prev)
@@ -31,15 +31,15 @@
         </div>
     </x-slot>
 
-    <div x-data="dayBoard(@js($payload))" class="space-y-6">
+    <div x-data="dayBoard(@js($payload))" class="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
         @unless ($isToday)
-            <a href="{{ route('today') }}" class="block text-center text-sm rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-200 px-3 py-2">
+            <a href="{{ route('today') }}" class="block lg:col-span-3 text-center text-sm rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-200 px-3 py-2">
                 Estás editando un día pasado · <span class="font-semibold underline">volver a hoy</span>
             </a>
         @endunless
 
-        {{-- Prioridades --}}
-        <section>
+        {{-- Prioridades (en escritorio: columna derecha fija) --}}
+        <section class="lg:order-2 lg:sticky lg:top-20">
             <h2 class="section-title">Prioridades</h2>
             <template x-if="priorities.length">
                 <ul class="card divide-y divide-gray-100">
@@ -76,7 +76,7 @@
         </section>
 
         {{-- Hábitos --}}
-        <section>
+        <section class="lg:order-1 lg:col-span-2">
             <div class="flex items-baseline justify-between">
                 <h2 class="section-title">Hábitos</h2>
                 <span class="text-xs font-semibold text-gray-500 px-1" x-show="habits.length" x-text="`${done}/${habits.length}`"></span>
@@ -128,7 +128,7 @@
         </section>
 
         <div x-show="error" x-cloak x-transition
-             class="fixed left-4 right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 max-w-lg mx-auto rounded-xl bg-rose-600 text-white text-sm px-4 py-3 shadow-lg"
+             class="fixed left-4 right-4 lg:left-64 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 z-40 max-w-lg mx-auto rounded-xl bg-rose-600 text-white text-sm px-4 py-3 shadow-lg"
              x-text="error"></div>
     </div>
 </x-app-layout>

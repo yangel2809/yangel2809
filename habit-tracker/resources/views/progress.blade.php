@@ -12,7 +12,7 @@
     ];
 @endphp
 
-<x-app-layout title="Progreso">
+<x-app-layout title="Progreso" width="wide">
     <x-slot name="head">@vite('resources/js/progress.js')</x-slot>
     <x-slot name="header">
         <div class="flex items-center justify-between gap-2">
@@ -27,16 +27,16 @@
     <script type="application/json" id="progress-data">@json(['habits' => $summary, 'weekday' => $weekdayData])</script>
 
     @if (empty($summary))
-        <div class="card p-6 text-center space-y-3">
+        <div class="card p-6 lg:py-12 text-center space-y-3">
             <p class="text-gray-600">Crea un hábito y regístralo unos días para ver tu progreso.</p>
             <a href="{{ route('habits.create') }}" class="btn-primary">Crear hábito</a>
         </div>
     @else
-        <div class="space-y-6">
+        <div class="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
             {{-- Retroalimentación --}}
-            <section>
+            <section class="lg:col-span-2">
                 <h2 class="section-title">Lo que dicen tus datos</h2>
-                <ul class="space-y-2">
+                <ul class="space-y-2 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3">
                     @foreach ($feedback as $msg)
                         @php [$box, $ink, $icon] = $tones[$msg['tone']]; @endphp
                         <li class="flex gap-3 rounded-2xl ring-1 px-4 py-3 {{ $box }}">
@@ -48,11 +48,11 @@
             </section>
 
             {{-- KPIs --}}
-            <section class="grid grid-cols-3 gap-2">
+            <section class="lg:col-span-2 grid grid-cols-3 gap-2 lg:gap-4">
                 @foreach ([['Últimos 7 días', $pct($overall7['rate'])], ['Últimos 30 días', $pct($overall30['rate'])], ['Prioridades 7 d', $priorities7['completed'] + $priorities7['not_completed'] ? $priorities7['completed'].'/'.($priorities7['completed'] + $priorities7['not_completed']) : '—']] as [$label, $value])
-                    <div class="card px-3 py-3">
-                        <p class="text-[11px] leading-tight text-gray-500">{{ $label }}</p>
-                        <p class="text-2xl font-semibold mt-1">{{ $value }}</p>
+                    <div class="card px-3 py-3 lg:px-5 lg:py-4">
+                        <p class="text-[11px] lg:text-sm leading-tight text-gray-500">{{ $label }}</p>
+                        <p class="text-2xl lg:text-3xl font-semibold mt-1">{{ $value }}</p>
                     </div>
                 @endforeach
             </section>
@@ -123,7 +123,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="grid grid-cols-7 gap-1.5 text-center">
+                <div class="grid grid-cols-7 gap-1.5 text-center lg:max-w-sm lg:mx-auto">
                     @foreach ($short as $d)
                         <span class="text-[11px] text-gray-400">{{ $d }}</span>
                     @endforeach
@@ -137,7 +137,7 @@
                                 :style="`background:${color(c)}`"></button>
                     </template>
                 </div>
-                <p class="text-sm text-gray-700 mt-3 min-h-[1.25rem]" x-text="picked ? label(picked) : 'Toca un día para ver el detalle.'"></p>
+                <p class="text-sm text-gray-700 mt-3 min-h-[1.25rem]" x-text="picked ? label(picked) : (matchMedia('(hover: hover)').matches ? 'Haz clic en un día para ver el detalle.' : 'Toca un día para ver el detalle.')"></p>
                 <div class="flex items-center gap-1.5 mt-2 text-[11px] text-gray-500">
                     <span>0%</span>
                     @foreach (['#dbe9fb', '#9ec5f4', '#6da7ec', '#3987e5', '#1c5cab'] as $c)
@@ -153,7 +153,7 @@
                 <h2 class="font-semibold">Por día de la semana</h2>
                 <p class="text-xs text-gray-500 mb-2">Últimos 30 días · solo hábitos diarios (en los semanales un día sin hacer no es fallo).</p>
                 @if ($hasDaily)
-                    <div class="h-48"><canvas id="chart-weekday" role="img" aria-label="Cumplimiento por día de la semana"></canvas></div>
+                    <div class="h-48 lg:h-72"><canvas id="chart-weekday" role="img" aria-label="Cumplimiento por día de la semana"></canvas></div>
                     <p class="sr-only">
                         @foreach ($weekdayData as $d) {{ $d['name'] }}: {{ $pct($d['rate']) }}. @endforeach
                     </p>
