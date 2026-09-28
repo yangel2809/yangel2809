@@ -54,6 +54,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Fuerza https en las URLs generadas (hosting con SSL en un proxy).
+    'force_https' => (bool) env('APP_FORCE_HTTPS', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
