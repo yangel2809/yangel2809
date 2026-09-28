@@ -39,6 +39,13 @@ npm run dev          # en otra terminal: php artisan serve
 Abre http://localhost:8000/register y crea tu usuario. Después de eso el
 registro queda cerrado (404): la app es de un solo usuario.
 
+Para probar las pantallas con historial (60 días de registros con patrones,
+prioridades y notas) en tu BD **local**:
+
+```bash
+php artisan db:seed --class=DemoSeeder   # borra y regenera los hábitos demo del primer usuario
+```
+
 ### Tests
 
 ```bash

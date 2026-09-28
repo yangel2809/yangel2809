@@ -3,6 +3,7 @@
 use App\Http\Controllers\HabitController;
 use App\Http\Controllers\HabitLogController;
 use App\Http\Controllers\PriorityController;
+use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TodayController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/manana', [PriorityController::class, 'edit'])->name('priorities.edit');
     Route::put('/manana', [PriorityController::class, 'update'])->name('priorities.update');
     Route::patch('/prioridades/{priority}', [PriorityController::class, 'mark'])->name('priorities.mark');
+
+    Route::get('/progreso', [ProgressController::class, 'index'])->name('progress');
 
     Route::resource('habitos', HabitController::class)
         ->except('show')
