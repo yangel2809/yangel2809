@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#111827">
+    <title>Sin conexión · Hábitos</title>
+    <style>
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f3f4f6; color: #111827;
+               font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
+        img { width: 72px; height: 72px; border-radius: 18px; }
+        h1 { font-size: 1.25rem; margin: 16px 0 8px; }
+        p { color: #4b5563; margin: 0 0 24px; line-height: 1.5; }
+        button { font: inherit; font-weight: 600; padding: 12px 24px; border: 0; border-radius: 12px; background: #111827; color: #fff; }
+    </style>
+</head>
+<body>
+    <main>
+        <img src="pwa/icon-192.png" alt="">
+        <h1>Sin conexión</h1>
+        <p>Los registros se guardan en el servidor, así que hace falta internet.<br>Vuelve a intentarlo cuando tengas señal.</p>
+        <button onclick="location.reload()">Reintentar</button>
+    </main>
+</body>
+</html>

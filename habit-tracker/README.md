@@ -3,10 +3,33 @@
 App personal (un solo usuario) para registrar hábitos, planear el día siguiente
 y ver el progreso. Laravel 11 · PHP 8.2+ · MySQL/MariaDB · Blade + Alpine + Tailwind.
 
+- [Qué hace](#qué-hace)
 - [Desarrollo local](#desarrollo-local)
 - [Despliegue en InfinityFree](#despliegue-en-infinityfree)
+- [Instalar en el móvil (PWA)](#instalar-en-el-móvil-pwa)
+- [Informe para IA y respaldo](#informe-para-ia-y-respaldo)
 - [Actualizar una instalación existente](#actualizar-una-instalación-existente)
+- [Otro hosting o VPS](#otro-hosting-o-vps)
 - [Problemas frecuentes](#problemas-frecuentes)
+
+---
+
+## Qué hace
+
+| Pantalla | Para qué |
+|---|---|
+| **Hoy** (`/`) | Marcar hábitos con un toque, nota opcional por registro, prioridades del día (cumplida / no cumplida). Con ‹ se puede corregir hasta 6 días atrás. |
+| **Mañana** | Hasta 3 prioridades para el día siguiente; al otro día aparecen en Hoy. |
+| **Progreso** | % por hábito (7 y 30 días), rachas actual y mejor, calendario de 30 días, cumplimiento por día de la semana y retroalimentación automática por reglas. |
+| **Generar informe** (desde Progreso) | Markdown de 7, 14 o 30 días listo para copiar y pegar en un chat con una IA; termina con la pregunta de análisis. También se puede descargar como `.md`. |
+| **Hábitos** | Crear, editar, archivar, restaurar, eliminar. Diario o N veces por semana. |
+| **Cuenta** | Perfil, contraseña, **exportar todos los datos en JSON**, cerrar sesión. |
+
+Reglas de cálculo (en `app/Services/HabitStatsService.php`):
+- Diario: un día pasado sin marcar = no cumplido; hoy solo cuenta si ya está marcado.
+- Semanal: se evalúa por semana ISO (lunes a domingo); la semana en curso y la
+  semana parcial en que empezó el hábito solo cuentan si ya se cumplieron.
+- Nada anterior a la fecha "Cuenta desde" del hábito se evalúa.
 
 ---
 
@@ -82,6 +105,7 @@ build/infinityfree/htdocs/
 ├── .htaccess          ← reescritura a index.php + bloquea /laravel y archivos .*
 ├── index.php          ← front controller que carga laravel/ y fija public_path
 ├── build/             ← CSS/JS compilados por Vite
+├── pwa/, manifest.webmanifest, sw.js, offline.html   ← PWA
 ├── favicon.ico, robots.txt
 └── laravel/
     ├── .htaccess      ← "Require all denied" (segunda capa)
@@ -215,6 +239,48 @@ htdocs/laravel/vendor/autoload.php
 
 ---
 
+## Instalar en el móvil (PWA)
+
+Requiere HTTPS (paso 1.4 del despliegue); sin HTTPS el navegador no registra
+el service worker ni ofrece instalar.
+
+- **Android (Chrome):** abre la app, menú ⋮ → **Instalar app** (o "Agregar a
+  pantalla de inicio"). Mantener presionado el icono muestra accesos directos
+  a *Planear mañana* y *Progreso*.
+- **iPhone (Safari):** botón Compartir → **Agregar a pantalla de inicio**.
+  (En iOS solo Safari puede instalar PWAs.)
+
+Se abre a pantalla completa, sin barra del navegador, directo en **Hoy**.
+Marca "Mantener sesión iniciada" al entrar para no tener que loguearte cada vez.
+
+Qué hace el service worker (`public/sw.js`):
+- **No cachea páginas HTML**: siempre pide la versión fresca, porque llevan tus
+  datos del día y el token CSRF (una copia vieja causaría errores 419).
+- Cachea CSS/JS de `build/assets` (llevan hash, son inmutables) e iconos, para
+  que la app abra rápido aunque el hosting sea lento.
+- Sin conexión muestra `offline.html`. Los registros **no** se guardan offline:
+  si tocas un hábito sin red, la app avisa y revierte el cambio.
+- Solo guarda respuestas con el tipo de contenido esperado. Así no cachea por
+  error la página del "security system" de InfinityFree (desafío JS/cookie),
+  que responde HTML en lugar del archivo pedido.
+
+---
+
+## Informe para IA y respaldo
+
+- **Progreso → Generar informe** → elige 7, 14 o 30 días → **Copiar al
+  portapapeles** → pega en tu chat con la IA. Incluye: rango, cada hábito con %,
+  rachas, detalle semanal, patrón por día de la semana, prioridades cumplidas /
+  no cumplidas / sin marcar, tus notas y la pregunta final.
+- **Cuenta → Exportar datos (JSON)** descarga `habitos-respaldo-AAAA-MM-DD.json`
+  con hábitos (incluidos archivados), todos los registros con notas y las
+  prioridades. Hazlo antes de cambios grandes. El formato lleva
+  `format_version: 1`; la importación desde la app aún no existe (ver
+  ROADMAP). Mientras tanto el respaldo completo "restaurable" es exportar la BD
+  desde phpMyAdmin (pestaña **Exportar** → SQL).
+
+---
+
 ## Actualizar una instalación existente
 
 1. **Si hay migraciones nuevas**, genera solo el SQL pendiente. Tu BD local
@@ -242,6 +308,7 @@ htdocs/laravel/vendor/autoload.php
    |---|---|
    | PHP / vistas / rutas / config | `laravel/app`, `laravel/resources`, `laravel/routes`, `laravel/config` |
    | CSS / JS | `build/` (borra primero la vieja en el servidor) |
+   | PWA (iconos, manifest, service worker) | `pwa/`, `manifest.webmanifest`, `sw.js`, `offline.html` |
    | `composer.lock` | `laravel/vendor` completo y `laravel/bootstrap/cache/packages.php` |
    | `.env.production` | `laravel/.env` |
 
@@ -252,6 +319,30 @@ htdocs/laravel/vendor/autoload.php
    sube por FTP un archivo `htdocs/laravel/storage/framework/down` cuyo
    contenido sea exactamente `{}` y bórralo al terminar. Laravel responde 503
    mientras exista. **Vacío no sirve: da error 500.**
+
+---
+
+## Otro hosting o VPS
+
+Con SSH y PHP 8.2+ no hace falta `deploy:build` ni el SQL manual; se usa la
+estructura estándar de Laravel:
+
+```bash
+git clone <repo> && cd habit-tracker
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+cp .env.example .env          # APP_ENV=production, APP_DEBUG=false, APP_URL, DB_*
+php artisan key:generate
+php artisan migrate --force
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+```
+
+- El *document root* del sitio (Nginx/Apache) debe ser `habit-tracker/public`.
+- Permisos de escritura para el usuario del servidor web en `storage/` y
+  `bootstrap/cache/`.
+- HTTPS con Let's Encrypt (`certbot`). Si hay un proxy/balanceador delante,
+  usa `APP_FORCE_HTTPS=true` o configura *trusted proxies*.
+- No necesita cron ni colas.
 
 ---
 
@@ -288,6 +379,15 @@ php -r "echo password_hash('nueva-clave', PASSWORD_BCRYPT), PHP_EOL;"
 ```
 
 y pégalo en la columna `password` de `users` desde phpMyAdmin.
+
+**La app instalada sigue mostrando la versión vieja.** El service worker se
+revisa en cada visita (`sw.js` va con `Cache-Control: no-cache`). Cierra y
+abre la app. Si cambiaste `sw.js`, sube `VERSION` en ese archivo para
+invalidar la caché.
+
+**`/icons/...` da 404.** Muchos Apache traen `Alias /icons/` para el listado
+de directorios. Por eso los iconos de la PWA están en `pwa/`. No los muevas a
+`icons/`.
 
 **Permisos.** En InfinityFree PHP corre con tu usuario FTP, así que
 `storage/` y `bootstrap/cache/` ya son escribibles. En otro hosting, dales

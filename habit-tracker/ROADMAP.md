@@ -13,6 +13,12 @@ Fuera del MVP a propósito. Anotado para decidir después, no para construir aho
 - **Recordatorio nocturno para planear mañana.** Sin push (fuera de alcance):
   la alternativa barata es un correo diario, pero el plan gratis de
   InfinityFree no envía correo. Requiere otro hosting o un servicio externo.
+- **Importar el respaldo JSON.** El export ya tiene `format_version: 1`;
+  falta la pantalla que lo lea (validar versión, pedir confirmación, reemplazar
+  datos en una transacción).
+- **Registrar sin conexión.** Hoy, un toque sin red se revierte y avisa. Una
+  cola en IndexedDB que el service worker reenvíe (Background Sync) lo
+  resolvería. El envío idempotente (estado deseado, no toggle) ya está hecho.
 - **Marcar días más antiguos.** Hoy se puede registrar hasta 7 días atrás
   (`LocalDate::EDITABLE_DAYS`). Si hace falta más, basta con subir la
   constante.

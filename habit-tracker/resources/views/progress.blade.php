@@ -15,9 +15,12 @@
 <x-app-layout title="Progreso">
     <x-slot name="head">@vite('resources/js/progress.js')</x-slot>
     <x-slot name="header">
+        <div class="flex items-center justify-between gap-2">
         <div class="leading-tight">
             <h1 class="text-xl font-bold">Progreso</h1>
             <p class="text-xs text-gray-500">{{ LocalDate::parse($from30)->locale('es')->isoFormat('D MMM') }} – {{ LocalDate::parse($today)->locale('es')->isoFormat('D MMM') }}</p>
+        </div>
+        <a href="{{ route('report') }}" class="btn-primary py-2 px-3 text-sm shrink-0">Generar informe</a>
         </div>
     </x-slot>
 

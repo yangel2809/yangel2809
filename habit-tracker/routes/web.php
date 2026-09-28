@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\HabitController;
 use App\Http\Controllers\HabitLogController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProgressController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TodayController;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +20,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/prioridades/{priority}', [PriorityController::class, 'mark'])->name('priorities.mark');
 
     Route::get('/progreso', [ProgressController::class, 'index'])->name('progress');
+    Route::get('/informe', [ReportController::class, 'show'])->name('report');
+    Route::get('/informe/descargar', [ReportController::class, 'download'])->name('report.download');
+    Route::get('/exportar', ExportController::class)->name('export');
 
     Route::resource('habitos', HabitController::class)
         ->except('show')

@@ -2,17 +2,22 @@ export class ApiError extends Error {}
 
 /** fetch JSON con CSRF. Una sesión expirada (419) recarga la página. */
 export async function api(url, method, body) {
-    const res = await fetch(url, {
-        method,
-        credentials: 'same-origin',
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-        },
-        body: JSON.stringify(body),
-    });
+    let res;
+    try {
+        res = await fetch(url, {
+            method,
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            },
+            body: JSON.stringify(body),
+        });
+    } catch {
+        throw new ApiError('Sin conexión: no se guardó. Inténtalo de nuevo.');
+    }
 
     if (res.status === 419 || res.status === 401) {
         window.location.reload();
