@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body style="margin:0">
+<title>REKO Manager 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: consola de operaciones — escena 3D a la izquierda, panel de gestión a la derecha; en móvil se apilan. Tema oscuro deliberado (sala de control). */
+:root{
+  --bg:#0d1315; --panel:#141c1f; --panel-2:#1a2427; --line:#26333a; --fg:#e7efea; --muted:#8ea29a;
+  --accent:#5cc8d6; --beam:#ff8a3d;
+  --ok:#4cc38a; --warn:#f2b43a; --crit:#ef5b4c; --off:#7d8a90;
+  --display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);font-size:14px}
+*{box-sizing:border-box}
+.app{display:grid;grid-template-rows:auto 1fr;height:100%;padding-inline:16px;padding-block:12px;gap:12px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0}
+.brand h1{margin:0;font-size:20px;font-weight:800;letter-spacing:.01em;text-wrap:balance}
+.brand small{color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.demo{display:inline-block;margin-left:8px;padding:1px 6px;border:1px solid var(--warn);color:var(--warn);font-family:var(--mono);font-size:10px;letter-spacing:.08em;vertical-align:middle;border-radius:3px}
+.kpis{display:flex;flex-wrap:wrap;gap:8px;flex:1;justify-content:flex-end}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 12px;min-width:118px}
+.kpi span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.kpi b{font-family:var(--mono);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi b.crit{color:var(--crit)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:12px;min-height:0}
+.stage{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel);min-height:0}
+#scene{position:absolute;inset:0}
+#scene canvas{display:block;width:100%;height:100%;touch-action:none}
+.tabs{position:absolute;top:10px;left:10px;display:flex;gap:4px;background:rgba(13,19,21,.8);padding:4px;border-radius:6px;border:1px solid var(--line)}
+.tabs button,.btn{font:inherit;cursor:pointer;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--muted);padding:6px 12px;font-weight:600;font-size:13px}
+.tabs button[aria-pressed="true"]{background:var(--panel-2);color:var(--fg);border-color:var(--line)}
+.tabs button:hover{color:var(--fg)}
+.hint{position:absolute;bottom:10px;left:10px;color:var(--muted);font-size:11px;font-family:var(--mono);background:rgba(13,19,21,.75);padding:4px 8px;border-radius:4px;pointer-events:none}
+.legend{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:4px;background:rgba(13,19,21,.8);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:11px;color:var(--muted)}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+aside{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:auto;min-height:0;padding:16px;display:flex;flex-direction:column;gap:16px}
+aside h2{margin:0;font-size:18px;font-weight:800;text-wrap:balance}
+aside h3{margin:0;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}
+.sub{color:var(--muted);margin-top:2px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.s-ok{color:var(--ok)}.s-low{color:var(--warn)}.s-fault{color:var(--crit)}.s-offline{color:var(--off)}
+.list{display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none}
+.list button{all:unset;box-sizing:border-box;display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:center;width:100%;padding:8px;border-radius:6px;cursor:pointer}
+.list button:hover,.list button:focus-visible{background:var(--panel-2)}
+.list button:focus-visible{outline:2px solid var(--accent)}
+.mid{font-family:var(--mono);font-weight:600;font-size:12px}
+.loc{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.bar{position:relative;height:6px;background:var(--panel-2);border-radius:3px;overflow:hidden}
+.bar > i{position:absolute;inset:0 auto 0 0;border-radius:3px}
+.bar > em{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--fg);opacity:.55}
+.mini{grid-column:2 / 4}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--panel-2);border-radius:6px;padding:10px}
+.stat span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.stat b{font-family:var(--mono);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.alert{border-left:3px solid var(--crit);background:var(--panel-2);padding:10px 12px;border-radius:0 6px 6px 0}
+.alert.off{border-color:var(--off)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border-color:var(--line);color:var(--fg);background:var(--panel-2)}
+.btn.primary{background:var(--accent);color:#08262b;border-color:var(--accent)}
+.btn:hover:not(:disabled){filter:brightness(1.12)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.08em;padding:0 6px 6px}
+td{padding:7px 6px;border-top:1px solid var(--line);vertical-align:middle}
+td.n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td .sku{display:block;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.swatch{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.log{list-style:none;margin:0;padding:0;font-size:12px;display:flex;flex-direction:column;gap:6px}
+.log li{display:grid;grid-template-columns:44px 1fr;gap:8px;color:var(--muted)}
+.log time{font-family:var(--mono);color:var(--fg);opacity:.7}
+.van{background:var(--panel-2);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.van b{font-family:var(--mono);font-size:12px}
+.chart text{fill:var(--muted);font-family:var(--mono);font-size:10px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel-2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:6px;font-size:13px;max-width:calc(100% - 32px);transition:opacity .25s;opacity:0;pointer-events:none;z-index:5}
+.toast.show{opacity:1}
+@media (max-width:860px){
+  html,body{height:auto}
+  .app{height:auto}
+  main{grid-template-columns:1fr}
+  .stage{height:58vh;min-height:340px}
+  .kpis{justify-content:flex-start}
+  .legend{display:none}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>REKO Manager <span class="demo">DEMO</span></h1>
+      <small id="clock">Red de vending · Almacén Central</small>
+    </div>
+    <div class="kpis" id="kpis"></div>
+  </header>
+  <main>
+    <div class="stage">
+      <div id="scene"></div>
+      <div class="tabs" role="group" aria-label="Vista">
+        <button id="tab-red" aria-pressed="true">Red</button>
+        <button id="tab-almacen" aria-pressed="false">Almacén</button>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <div><i style="background:var(--ok)"></i>Operativa</div>
+        <div><i style="background:var(--warn)"></i>Stock bajo</div>
+        <div><i style="background:var(--crit)"></i>Avería</div>
+        <div><i style="background:var(--off)"></i>Sin conexión</div>
+      </div>
+      <div class="hint">Arrastra para girar · rueda para zoom · clic en una máquina o en el almacén</div>
+    </div>
+    <aside id="panel" aria-live="polite"></aside>
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+'use strict';
+// ---------- Datos de ejemplo (ficticios) ----------
+const CSS = getComputedStyle(document.documentElement);
+const tok = n => CSS.getPropertyValue(n).trim();
+const COL = {ok:tok('--ok'),low:tok('--warn'),fault:tok('--crit'),offline:tok('--off'),accent:tok('--accent'),bg:tok('--bg')};
+const STATUS_LABEL = {ok:'Operativa',low:'Stock bajo',fault:'Avería',offline:'Sin conexión'};
+const TYPE_LABEL = {bebida:'Bebidas frías',snack:'Snacks',cafe:'Café caliente'};
+const CAPACITY = {bebida:300,snack:320,cafe:400}; // uds / servicios
+
+const products = [
+  {sku:'BEB-001',name:'Agua mineral 50cl',cat:'bebida',units:820,max:1200,min:300,cost:0.18,unit:'uds',color:0x5cc8d6},
+  {sku:'BEB-002',name:'Refresco cola 33cl',cat:'bebida',units:540,max:1000,min:300,cost:0.32,unit:'uds',color:0xc8463a},
+  {sku:'BEB-003',name:'Bebida energética 25cl',cat:'bebida',units:240,max:600,min:200,cost:0.71,unit:'uds',color:0x3f6fd8},
+  {sku:'SNK-001',name:'Patatas fritas 45g',cat:'snack',units:610,max:900,min:250,cost:0.29,unit:'uds',color:0xe8b84a},
+  {sku:'SNK-002',name:'Chocolatina 40g',cat:'snack',units:380,max:800,min:250,cost:0.34,unit:'uds',color:0x8a5a3b},
+  {sku:'SNK-003',name:'Barrita de cereales',cat:'snack',units:150,max:600,min:200,cost:0.27,unit:'uds',color:0x8fbf62},
+  {sku:'CAF-001',name:'Café en grano',cat:'cafe',units:62,max:120,min:30,cost:11.4,unit:'kg',per:0.008,color:0x6b4430},
+  {sku:'CAF-002',name:'Leche en polvo',cat:'cafe',units:41,max:80,min:20,cost:4.9,unit:'kg',per:0.006,color:0xe6dfd0},
+  {sku:'CAF-003',name:'Vasos 7oz',cat:'cafe',units:2300,max:5000,min:1500,cost:0.02,unit:'uds',per:1,color:0xb9c4c0},
+];
+const machines = [
+  {id:'REKO-101',short:'Hospital',loc:'Hospital Clínico · Planta 0',type:'bebida',fill:.82,today:184.6,temp:4.1,last:'Hoy 07:40'},
+  {id:'REKO-102',short:'Universidad',loc:'Universidad · Fac. Ciencias',type:'snack',fill:.19,today:96.3,temp:null,last:'Vie 18:05'},
+  {id:'REKO-103',short:'Torre Norte',loc:'Oficinas Torre Norte · P3',type:'cafe',fill:.64,today:142.0,temp:92,last:'Ayer 16:20'},
+  {id:'REKO-104',short:'Gimnasio',loc:'Gimnasio Fit Center',type:'bebida',fill:.55,today:61.8,temp:5.3,last:'Lun 09:10',fault:'Monedero atascado · solo acepta tarjeta'},
+  {id:'REKO-105',short:'Estación',loc:'Estación de autobuses · Hall',type:'snack',fill:.23,today:118.9,temp:null,last:'Jue 12:30'},
+  {id:'REKO-106',short:'C. Comercial',loc:'Centro comercial · Acceso B',type:'bebida',fill:.91,today:203.4,temp:3.8,last:'Hoy 08:15'},
+  {id:'REKO-107',short:'Polígono',loc:'Polígono Ind. · Nave 12',type:'cafe',fill:.47,today:38.5,temp:88,last:'Mar 11:00',offline:true},
+  {id:'REKO-108',short:'Aeropuerto',loc:'Aeropuerto · Terminal 1',type:'snack',fill:.71,today:167.2,temp:null,last:'Ayer 21:45'},
+];
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+machines.forEach(m => { m.week = Array.from({length:6}, () => Math.round(m.today * (0.7 + rnd()*0.7))); m.pulse = 0; });
+const statusOf = m => m.offline ? 'offline' : m.fault ? 'fault' : m.fill < .25 ? 'low' : 'ok';
+const eur = v => v.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+const hhmm = () => new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+const log = [];
+function addLog(msg){ log.unshift({t:hhmm(),msg}); log.length = Math.min(log.length, 8); }
+addLog('Turno iniciado · 8 máquinas monitorizadas');
+addLog('REKO-104 reporta fallo de monedero');
+addLog('REKO-107 sin telemetría desde 07:12');
+
+// ---------- Escena ----------
+const host = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+host.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COL.bg);
+scene.fog = new THREE.Fog(COL.bg, 70, 150);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
+camera.position.set(0, 40, 56);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.maxPolarAngle = 1.38; controls.minDistance = 6; controls.maxDistance = 100;
+controls.target.set(0, 0, 10);
+
+scene.add(new THREE.HemisphereLight(0xd4ecff, 0x161c1e, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+sun.position.set(-25, 40, 20); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, {left:-45, right:45, top:45, bottom:-45, near:1, far:120});
+scene.add(sun);
+
+const mat = (color, o={}) => new THREE.MeshStandardMaterial(Object.assign({color, roughness:.75, metalness:.05}, o));
+function box(w,h,d,m,x=0,y=0,z=0,parent){ const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m); b.position.set(x,y,z); b.castShadow = b.receiveShadow = true; if(parent) parent.add(b); return b; }
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400,400), mat(0x111a1c,{roughness:1}));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(200, 100, 0x1f2c30, 0x182326); grid.position.y = 0.01; scene.add(grid);
+
+function label(l1, l2, w=5.4){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 150;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(13,19,21,.88)'; g.strokeStyle = 'rgba(92,200,214,.55)'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(16,4); g.arcTo(508,4,508,146,14); g.arcTo(508,146,4,146,14); g.arcTo(4,146,4,4,14); g.arcTo(4,4,508,4,14); g.fill(); g.stroke();
+  g.fillStyle = '#e7efea'; g.font = '600 52px "IBM Plex Mono", Menlo, monospace'; g.fillText(l1, 28, 66);
+  g.fillStyle = '#8ea29a'; g.font = '500 36px Archivo, Arial, sans-serif'; g.fillText(l2, 28, 120);
+  const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthWrite:false, transparent:true}));
+  s.scale.set(w, w*150/512, 1); return s;
+}
+
+// ---------- Almacén ----------
+const warehouse = new THREE.Group(); warehouse.userData.kind = 'warehouse'; scene.add(warehouse);
+box(22,.3,13, mat(0x1f292c), 0,.15,0, warehouse);
+const wallM = mat(0x24343a,{transparent:true, opacity:.55});
+box(22,4.5,.25, wallM, 0,2.55,-6.5, warehouse);
+box(.25,4.5,13, wallM, -11,2.55,0, warehouse);
+box(.25,4.5,13, wallM, 11,2.55,0, warehouse);
+[-11,-5.5,5.5,11].forEach(x => box(.35,4.5,.35, mat(0x2e3e44), x,2.55,6.5, warehouse));
+const lineM = new THREE.MeshBasicMaterial({color:0xf2b43a});
+[-1.7, 1.7].forEach(z => { const l = new THREE.Mesh(new THREE.PlaneGeometry(19,.08), lineM); l.rotation.x = -Math.PI/2; l.position.set(0,.31,z); warehouse.add(l); });
+const dockPad = box(7,.12,3.6, mat(0x2a3438), 0,.06,8.3, warehouse);
+const stripeM = new THREE.MeshBasicMaterial({color:0xf2b43a});
+for(let i=0;i<7;i++){ const s = new THREE.Mesh(new THREE.PlaneGeometry(.35,1.2), stripeM); s.rotation.x = -Math.PI/2; s.rotation.z = .6; s.position.set(-3+i,.13,9.6); warehouse.add(s); }
+
+// Estanterías: 3 filas × 4 vanos × 3 niveles. Cada nivel de una fila = un producto (vigas naranjas, como en un almacén real).
+const rowsZ = [-4.6, 0, 4.0], bayW = 3.6, levels = [.5, 1.7, 2.9];
+const uprightM = mat(0x3a6ea5,{metalness:.4, roughness:.5}), beamM = mat(0xff8a3d,{metalness:.3, roughness:.5});
+const cellBoxes = products.map(() => []);
+rowsZ.forEach((z, r) => {
+  for(let b=0;b<=4;b++){ const x = -7.2 + b*bayW; [-.75,.75].forEach(dz => box(.12,3.6,.12, uprightM, x,2.1,z+dz, warehouse)); }
+  levels.forEach((y, l) => {
+    [-.75,.75].forEach(dz => box(14.4,.12,.1, beamM, 0,y,z+dz, warehouse));
+    const p = r*3 + l, pm = mat(products[p].color, {roughness:.9});
+    for(let b=0;b<4;b++) for(let k=0;k<6;k++){
+      const bx = -7.2 + b*bayW + .65 + (k%3)*1.15, bz = z + (k<3 ? -.38 : .38);
+      cellBoxes[p].push(box(.95,.8,.66, pm, bx, y+.46, bz, warehouse));
+    }
+  });
+});
+function updateRacks(){ products.forEach((p,i) => { const n = Math.round(Math.min(1, p.units/p.max) * 24); cellBoxes[i].forEach((b,k) => b.visible = k < n); }); }
+const whLabel = label('ALMACÉN CENTRAL', '9 referencias · 3 pasillos', 7); whLabel.position.set(0, 6.6, 0); warehouse.add(whLabel);
+
+// ---------- Máquinas ----------
+const DOCK = new THREE.Vector3(0, 0, 9.5), RADIUS = 21;
+const TYPE_COLOR = {bebida:0x2f6fb0, snack:0xd0662f, cafe:0x6b4a36};
+const TYPE_ITEMS = {bebida:[0x5cc8d6,0xc8463a,0x3f6fd8], snack:[0xe8b84a,0x8a5a3b,0x8fbf62], cafe:[0x6b4430,0xe6dfd0,0xb9c4c0]};
+const glassM = new THREE.MeshStandardMaterial({color:0x9fd3e0, transparent:true, opacity:.22, roughness:.05, metalness:.2});
+const darkM = mat(0x0b1012);
+machines.forEach((m, i) => {
+  const a = THREE.MathUtils.degToRad(18 + i * (144/7));
+  m.pos = new THREE.Vector3(DOCK.x + Math.cos(a)*RADIUS*1.15, 0, DOCK.z + Math.sin(a)*RADIUS);
+  m.dir = m.pos.clone().sub(DOCK).normalize();
+  const g = new THREE.Group(); g.position.copy(m.pos); g.lookAt(DOCK.x, 0, DOCK.z);
+  g.userData = {kind:'machine', id:m.id}; scene.add(g);
+  box(2.1,3.4,1.4, mat(TYPE_COLOR[m.type],{roughness:.45, metalness:.25}), 0,1.8,0, g);
+  box(1.4,2.4,.04, darkM, -.25,2.0,.45, g);
+  m.slots = [];
+  const items = TYPE_ITEMS[m.type].map(c => mat(c,{roughness:.6}));
+  for(let row=0; row<5; row++) for(let col=0; col<4; col++)
+    m.slots.push(box(.24,.3,.24, items[(row+col)%3], -.7+col*.3, 1.05+row*.45, .6, g));
+  box(1.4,2.4,.04, glassM, -.25,2.0,.71, g).castShadow = false;
+  box(.45,1.3,.05, mat(0x1b2427), .75,2.2,.72, g);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(.32,.22), new THREE.MeshBasicMaterial({color:0x5cc8d6})); screen.position.set(.75,2.62,.75); g.add(screen);
+  box(1.3,.32,.05, darkM, -.25,.48,.72, g);
+  box(2.1,.18,1.4, mat(0x151d20), 0,3.59,0, g);
+  m.lightMat = new THREE.MeshBasicMaterial({color:COL.ok});
+  m.light = new THREE.Mesh(new THREE.SphereGeometry(.2,16,12), m.lightMat); m.light.position.set(0,3.9,0); g.add(m.light);
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.7,2.7,.08,48), mat(0x1a2326)); pad.position.y = .04; pad.receiveShadow = true; g.add(pad);
+  m.ringMat = new THREE.MeshBasicMaterial({color:COL.ok, transparent:true, opacity:.9, side:THREE.DoubleSide});
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.45,2.7,48), m.ringMat); ring.rotation.x = -Math.PI/2; ring.position.y = .09; g.add(ring);
+  const lb = label(m.id, m.short); lb.position.set(0, 5.4, 0); g.add(lb);
+  m.group = g;
+  // Carretera desde el muelle de carga
+  const from = DOCK.clone(), to = m.pos.clone().sub(m.dir.clone().multiplyScalar(2.8));
+  const L = from.distanceTo(to);
+  const road = new THREE.Mesh(new THREE.BoxGeometry(1.7,.03,L), mat(0x1d282b,{roughness:1}));
+  road.position.copy(from).add(to).multiplyScalar(.5); road.position.y = .02;
+  road.rotation.y = Math.atan2(to.x-from.x, to.z-from.z); road.receiveShadow = true; scene.add(road);
+});
+function updateMachine(m){
+  const c = COL[statusOf(m)];
+  m.lightMat.color.set(c); m.ringMat.color.set(c);
+  const n = Math.round(m.fill * m.slots.length);
+  m.slots.forEach((s,k) => s.visible = k < n);
+}
+
+// ---------- Furgoneta de reposición ----------
+const vanObj = new THREE.Group(); scene.add(vanObj);
+box(1.5,1.4,2.6, mat(0xdfe6e3,{roughness:.5}), 0,1.1,-.3, vanObj);
+box(1.5,1.05,1.0, mat(0x5cc8d6,{roughness:.4}), 0,.92,1.5, vanObj);
+box(1.3,.45,.04, mat(0x0b1012,{roughness:.1}), 0,1.15,2.01, vanObj);
+const wheelG = new THREE.CylinderGeometry(.34,.34,.25,16), wheelM = mat(0x0b0f10);
+[[-.75,.34,1.3],[.75,.34,1.3],[-.75,.34,-1],[.75,.34,-1]].forEach(([x,y,z]) => { const w = new THREE.Mesh(wheelG, wheelM); w.rotation.z = Math.PI/2; w.position.set(x,y,z); w.castShadow = true; vanObj.add(w); });
+const VAN_HOME = new THREE.Vector3(0, 0, 8.3);
+vanObj.position.copy(VAN_HOME); vanObj.lookAt(0,0,20);
+const van = {state:'idle', queue:[], current:null, target:null, wait:0, speed:9};
+const stopPos = m => m.pos.clone().sub(m.dir.clone().multiplyScalar(3.6));
+
+function enqueue(id){
+  if(van.current === id || van.queue.includes(id)) return false;
+  van.queue.push(id); addLog(`${id} añadida a la ruta de reposición`);
+  if(van.state === 'idle') nextTrip();
+  return true;
+}
+function nextTrip(){
+  const id = van.queue.shift();
+  if(!id){ van.state = 'idle'; van.current = null; refresh(); return; }
+  van.current = id; van.state = 'out'; van.target = stopPos(byId(id)); refresh();
+}
+function refill(m){
+  const cap = CAPACITY[m.type], need = Math.round((1 - m.fill) * cap);
+  const ps = products.filter(p => p.cat === m.type);
+  let served = need;
+  ps.forEach(p => {
+    const per = p.per !== undefined ? p.per : 1/ps.length;
+    const want = need * per;
+    if(want > p.units) served = Math.min(served, Math.floor(p.units / per));
+  });
+  ps.forEach(p => { const per = p.per !== undefined ? p.per : 1/ps.length; p.units = Math.max(0, +(p.units - served*per).toFixed(p.unit === 'kg' ? 2 : 0)); });
+  m.fill = Math.min(1, m.fill + served / cap); m.last = 'Hoy ' + hhmm();
+  updateMachine(m); updateRacks();
+  addLog(`${m.id} repuesta: +${served} ${m.type === 'cafe' ? 'servicios' : 'uds'}`);
+  toast(`${m.id} repuesta al ${Math.round(m.fill*100)} %`);
+}
+function updateVan(dt){
+  if(van.state === 'unload'){ van.wait -= dt; if(van.wait <= 0){ van.state = 'back'; van.target = VAN_HOME.clone(); refresh(); } return; }
+  if(van.state !== 'out' && van.state !== 'back') return;
+  const p = vanObj.position, d = van.target.clone().sub(p); d.y = 0;
+  const dist = d.length(), step = van.speed * dt;
+  if(dist > .05) vanObj.lookAt(van.target.x, 0, van.target.z);
+  if(dist <= step){
+    p.copy(van.target);
+    if(van.state === 'out'){ refill(byId(van.current)); van.state = 'unload'; van.wait = 1.4; refresh(); }
+    else { vanObj.lookAt(0,0,20); van.current = null; nextTrip(); }
+  } else p.add(d.multiplyScalar(step / dist));
+}
+
+// ---------- Cámara ----------
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let fly = null;
+function flyTo(pos, look){ fly = {pos, look}; if(reduceMotion){ camera.position.copy(pos); controls.target.copy(look); fly = null; } }
+controls.addEventListener('start', () => fly = null);
+const VIEWS = {
+  red: () => flyTo(new THREE.Vector3(0,40,56), new THREE.Vector3(0,0,12)),
+  almacen: () => flyTo(new THREE.Vector3(15,15,21), new THREE.Vector3(0,1.2,0)),
+  machine: m => flyTo(m.pos.clone().sub(m.dir.clone().multiplyScalar(12)).add(new THREE.Vector3(m.dir.z*4,5,-m.dir.x*4)), m.pos.clone().add(new THREE.Vector3(0,2,0))),
+};
+
+// ---------- Selección ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function pick(ev){
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left)/r.width)*2 - 1, -((ev.clientY - r.top)/r.height)*2 + 1);
+  ray.setFromCamera(ndc, camera);
+  for(const hit of ray.intersectObjects(scene.children, true)){
+    let o = hit.object; while(o && !o.userData.kind) o = o.parent;
+    if(o) return o.userData;
+  }
+  return null;
+}
+let down = null;
+renderer.domElement.addEventListener('pointerdown', e => down = {x:e.clientX, y:e.clientY});
+renderer.domElement.addEventListener('pointerup', e => {
+  if(!down || Math.hypot(e.clientX-down.x, e.clientY-down.y) > 5) return;
+  const u = pick(e); if(!u) return;
+  if(u.kind === 'machine') select('machine', u.id); else select('almacen');
+});
+let hoverT = 0;
+renderer.domElement.addEventListener('pointermove', e => {
+  const now = performance.now(); if(now - hoverT < 60) return; hoverT = now;
+  renderer.domElement.style.cursor = pick(e) ? 'pointer' : 'grab';
+});
+
+// ---------- Panel ----------
+const panel = document.getElementById('panel');
+const byId = id => machines.find(m => m.id === id);
+let view = 'red', selId = null;
+function select(v, id){
+  view = v; selId = id || null;
+  document.getElementById('tab-red').setAttribute('aria-pressed', v === 'red');
+  document.getElementById('tab-almacen').setAttribute('aria-pressed', v === 'almacen');
+  if(v === 'machine') VIEWS.machine(byId(id)); else VIEWS[v]();
+  refresh();
+}
+document.getElementById('tab-red').onclick = () => select('red');
+document.getElementById('tab-almacen').onclick = () => select('almacen');
+
+const pill = s => `<span class="pill s-${s}">${STATUS_LABEL[s]}</span>`;
+const fillColor = f => f < .25 ? 'var(--warn)' : 'var(--ok)';
+function vanText(){
+  const q = van.queue.length ? ` · en cola: ${van.queue.join(', ')}` : '';
+  if(van.state === 'idle') return 'En muelle de carga · disponible';
+  if(van.state === 'out') return `En ruta hacia ${van.current}${q}`;
+  if(van.state === 'unload') return `Reponiendo ${van.current}${q}`;
+  return `Volviendo al almacén${q}`;
+}
+
+function renderKpis(){
+  const sales = machines.reduce((s,m) => s + m.today, 0);
+  const st = machines.map(statusOf);
+  const op = st.filter(s => s === 'ok' || s === 'low').length;
+  const alerts = st.filter(s => s !== 'ok').length;
+  const stock = products.reduce((s,p) => s + p.units * p.cost, 0);
+  const under = products.filter(p => p.units < p.min).length;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><span>Ventas hoy</span><b>${eur(sales)}</b></div>
+    <div class="kpi"><span>Operativas</span><b>${op}/${machines.length}</b></div>
+    <div class="kpi"><span>Alertas</span><b class="${alerts ? 'crit' : ''}">${alerts}</b></div>
+    <div class="kpi"><span>Valor almacén</span><b>${eur(stock)}</b></div>
+    <div class="kpi"><span>Ref. bajo mínimo</span><b class="${under ? 'crit' : ''}">${under}</b></div>`;
+}
+
+function renderRed(){
+  const lows = machines.filter(m => statusOf(m) === 'low' && van.current !== m.id && !van.queue.includes(m.id));
+  return `
+    <div><h2>Red de máquinas</h2><div class="sub">${machines.length} máquinas · 1 almacén · 1 furgoneta</div></div>
+    <div class="van"><h3>Furgoneta 01</h3><b>${vanText()}</b></div>
+    <div class="actions"><button class="btn primary" data-act="route" ${lows.length ? '' : 'disabled'}>Planificar ruta (${lows.length} con stock bajo)</button></div>
+    <div><h3>Máquinas</h3>
+    <ul class="list">${machines.map(m => `<li><button data-sel="${m.id}">
+      <span class="mid">${m.id}</span><span class="loc">${m.loc}</span>${pill(statusOf(m))}
+      <span class="mini bar"><i style="width:${Math.round(m.fill*100)}%;background:${fillColor(m.fill)}"></i></span>
+      <span></span></button></li>`).join('')}</ul></div>
+    <div><h3>Actividad reciente</h3><ul class="log">${log.map(l => `<li><time>${l.t}</time><span>${l.msg}</span></li>`).join('')}</ul></div>`;
+}
+
+function renderAlmacen(){
+  const stock = products.reduce((s,p) => s + p.units * p.cost, 0);
+  const under = products.filter(p => p.units < p.min);
+  const fmt = p => p.unit === 'kg' ? p.units.toFixed(1) + ' kg' : Math.round(p.units).toLocaleString('es-ES');
+  return `
+    <div><h2>Almacén Central</h2><div class="sub">Valor en stock ${eur(stock)} · ${under.length} referencias bajo mínimo</div></div>
+    <div class="actions">
+      <button class="btn primary" data-act="supplier" ${under.length ? '' : 'disabled'}>Recibir pedido de proveedor</button>
+      <button class="btn" data-act="route">Planificar ruta</button>
+    </div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Producto</th><th style="width:34%">Nivel</th><th style="text-align:right">Stock</th></tr></thead>
+      <tbody>${products.map(p => { const low = p.units < p.min; return `<tr>
+        <td><span class="swatch" style="background:#${p.color.toString(16).padStart(6,'0')}"></span>${p.name}<span class="sku">${p.sku} · mín. ${p.min.toLocaleString('es-ES')}</span></td>
+        <td><div class="bar"><i style="width:${Math.min(100,p.units/p.max*100)}%;background:${low ? 'var(--crit)' : 'var(--ok)'}"></i><em style="left:${p.min/p.max*100}%"></em></div></td>
+        <td class="n" style="color:${low ? 'var(--crit)' : 'inherit'}">${fmt(p)}</td></tr>`; }).join('')}</tbody>
+    </table></div>
+    <div class="sub" style="font-size:12px">La marca blanca en cada barra es el stock mínimo. Cada nivel de estantería del modelo 3D corresponde a una referencia.</div>`;
+}
+
+function weekChart(m){
+  const vals = [...m.week, m.today], days = ['M','X','J','V','S','D','Hoy'];
+  const max = Math.max(...vals) * 1.1, W = 320, H = 110, bw = 30, gap = (W - 7*bw) / 6;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H+18}" width="100%" role="img" aria-label="Ventas de los últimos 7 días">
+    <line x1="0" x2="${W}" y1="${H}" y2="${H}" stroke="var(--line)"/>
+    ${vals.map((v,i) => { const h = v/max*H, x = i*(bw+gap); return `<rect x="${x}" y="${H-h}" width="${bw}" height="${h}" rx="3" fill="${i === 6 ? 'var(--accent)' : 'var(--line)'}"/>
+      <text x="${x+bw/2}" y="${H+13}" text-anchor="middle">${days[i]}</text>
+      ${i === 6 ? `<text x="${x+bw/2}" y="${H-h-5}" text-anchor="middle" style="fill:var(--fg)">${Math.round(v)}€</text>` : ''}`; }).join('')}
+  </svg>`;
+}
+
+function renderMachine(m){
+  const s = statusOf(m), queued = van.current === m.id || van.queue.includes(m.id);
+  const temp = m.temp === null ? '—' : (m.type === 'cafe' ? m.temp + ' °C caldera' : m.temp.toFixed(1) + ' °C');
+  return `
+    <div class="row"><h2 class="mid" style="font-size:18px">${m.id}</h2>${pill(s)}</div>
+    <div class="sub" style="margin-top:-10px">${m.loc} · ${TYPE_LABEL[m.type]}</div>
+    ${m.fault ? `<div class="alert"><b>Avería:</b> ${m.fault}</div>` : ''}
+    ${m.offline ? `<div class="alert off"><b>Sin telemetría.</b> Los datos mostrados son de la última conexión (07:12).</div>` : ''}
+    <div class="stats">
+      <div class="stat"><span>Llenado</span><b>${Math.round(m.fill*100)} %</b></div>
+      <div class="stat"><span>Ventas hoy</span><b>${eur(m.today)}</b></div>
+      <div class="stat"><span>Temperatura</span><b>${temp}</b></div>
+      <div class="stat"><span>Última reposición</span><b>${m.last}</b></div>
+    </div>
+    <div class="bar"><i style="width:${Math.round(m.fill*100)}%;background:${fillColor(m.fill)}"></i><em style="left:25%"></em></div>
+    <div><h3>Ventas · últimos 7 días</h3>${weekChart(m)}</div>
+    <div class="actions">
+      <button class="btn primary" data-act="enqueue" ${queued || m.fill > .9 ? 'disabled' : ''}>${queued ? 'En ruta de reposición' : 'Añadir a ruta de reposición'}</button>
+      ${m.fault ? `<button class="btn" data-act="tech" ${m.techSent ? 'disabled' : ''}>${m.techSent ? 'Técnico en camino' : 'Enviar técnico'}</button>` : ''}
+      ${m.offline ? `<button class="btn" data-act="ping">Reintentar conexión</button>` : ''}
+      <button class="btn" data-act="back">Volver a la red</button>
+    </div>`;
+}
+
+function refresh(){
+  renderKpis();
+  panel.innerHTML = view === 'almacen' ? renderAlmacen() : view === 'machine' ? renderMachine(byId(selId)) : renderRed();
+}
+panel.addEventListener('click', e => {
+  const sel = e.target.closest('[data-sel]'); if(sel) return select('machine', sel.dataset.sel);
+  const a = e.target.closest('[data-act]'); if(!a || a.disabled) return;
+  const m = selId && byId(selId);
+  switch(a.dataset.act){
+    case 'route': {
+      const lows = machines.filter(x => statusOf(x) === 'low');
+      const n = lows.filter(x => enqueue(x.id)).length;
+      toast(n ? `Ruta planificada: ${n} máquina${n>1?'s':''}` : 'No hay máquinas pendientes de reposición');
+      break; }
+    case 'enqueue': enqueue(m.id); toast(`${m.id} añadida a la ruta`); break;
+    case 'tech':
+      m.techSent = true; addLog(`Técnico asignado a ${m.id}`); toast('Técnico asignado · llegada estimada en unos segundos (demo)');
+      setTimeout(() => { m.fault = null; m.techSent = false; addLog(`${m.id} reparada`); updateMachine(m); toast(`${m.id} reparada`); refresh(); }, 6000);
+      break;
+    case 'ping':
+      toast('Reintentando conexión…');
+      setTimeout(() => { m.offline = false; addLog(`${m.id} vuelve a estar en línea`); updateMachine(m); toast(`${m.id} conectada`); refresh(); }, 1800);
+      break;
+    case 'supplier':
+      products.forEach(p => { if(p.units < p.min) p.units = p.max; });
+      addLog('Pedido de proveedor recibido en almacén'); updateRacks(); toast('Stock repuesto al máximo en referencias bajo mínimo');
+      break;
+    case 'back': select('red'); return;
+  }
+  refresh();
+});
+
+let toastT;
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+
+// ---------- Simulación de ventas ----------
+setInterval(() => {
+  const live = machines.filter(m => !m.offline && m.fill > 0);
+  const m = live[Math.floor(Math.random() * live.length)]; if(!m) return;
+  const before = statusOf(m);
+  const price = m.type === 'cafe' ? 1.2 : m.type === 'bebida' ? 1.5 : 1.3;
+  m.today += price; m.fill = Math.max(0, m.fill - 3 / CAPACITY[m.type]); m.pulse = 1;
+  if(before !== 'low' && statusOf(m) === 'low') addLog(`${m.id} entra en stock bajo`);
+  updateMachine(m);
+  if(view !== 'almacen') refresh(); else renderKpis();
+}, 2200);
+
+function tickClock(){ document.getElementById('clock').textContent = 'Red de vending · Almacén Central · ' + new Date().toLocaleString('es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
+tickClock(); setInterval(tickClock, 30000);
+
+// ---------- Bucle ----------
+function resize(){ const w = host.clientWidth, h = host.clientHeight; if(!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(host); resize();
+const clock = new THREE.Clock();
+function loop(){
+  const dt = Math.min(clock.getDelta(), .05);
+  if(fly){
+    const k = 1 - Math.pow(.02, dt);
+    camera.position.lerp(fly.pos, k); controls.target.lerp(fly.look, k);
+    if(camera.position.distanceTo(fly.pos) < .05) fly = null;
+  }
+  machines.forEach(m => { m.pulse = Math.max(0, m.pulse - dt*1.8); m.light.scale.setScalar(1 + m.pulse*.9); });
+  updateVan(dt);
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+machines.forEach(updateMachine); updateRacks(); refresh();
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
